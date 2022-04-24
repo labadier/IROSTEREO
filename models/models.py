@@ -1,38 +1,50 @@
 import torch, os, random
 from utils.params import params
-import numpy as np, pandas as pd
-from models.Encoder import SeqModel, Data, seed_worker
-# from models.GraphBased import GCN
+from utils.utils import Data
+import numpy as np
+
+from models.Encoder import SeqModel, seed_worker
+from models.GraphBased import GCN
 from torch.utils.data import DataLoader
 from utils.utils import bcolors
+
 from sklearn.model_selection import StratifiedKFold
+from sklearn.metrics.pairwise import cosine_similarity
 
 
-class MultiTaskLoss(torch.nn.Module):
-    def __init__(self, task):
-        super(MultiTaskLoss, self).__init__()
-        self.task = task
+from torch_geometric.data import Data as GData
+from torch_geometric.loader import DataLoader as GLoader
 
-    def sigmoid(self, z ):
-      return 1./(1 + torch.exp(-z))
-
-    def forward(self, outputs, labels):
-
-      o_t1 = self.sigmoid(outputs[:,0]) 
-      loss_t1 = (-(labels[:,0]*torch.log(o_t1) + (1. - labels[:,0])*torch.log(1. - o_t1))).mean()
-      o_t2 = torch.nn.functional.softmax(outputs[:,1:], dim=-1)
-      # print()
-      loss_t2 = ((-(labels[:,1:]*torch.log(o_t2)).sum(axis=-1))*torch.where(labels[:,1] == -1, 0, 1)).mean()
-      return (loss_t1*(self.task != 2) + loss_t2)/2.0
-
+MODELS = {'gcn': GCN} | {params.models[language].split('/')[-1]: SeqModel for language in params.models.keys()}
 
 def sigmoid( z ):
   return 1./(1 + torch.exp(-z))
 
-def compute_acc(ground_truth, predictions):
-  return((1.0*(torch.max(predictions, 1).indices == ground_truth)).sum()/len(ground_truth)).cpu().numpy()
+def compute_acc(mode, out, data, mtl=False):
 
-def train_model(model_name, model, trainloader, devloader, epoches, lr, decay, output, split=1):
+  with torch.no_grad():
+  
+    if mtl == True:
+      out = torch.where(sigmoid(out) > 0.5, 1, 0).cpu()
+      acc_t1 = torch.where(data['labels'][:,0] == -1, 0, 1)*(out[:,0] == data['labels'][:,0])
+      acc_t1 = (torch.sum(acc_t1)/torch.sum(torch.where(data['labels'][:,0] == -1, 0, 1))).item()
+      
+      acc_t2 = torch.where(data['labels'][:,1] == -1, 0, 1)*(out[:,1] == data['labels'][:,1])
+      acc_t2 = (torch.sum(acc_t2)/torch.sum(torch.where(data['labels'][:,1] == -1, 0, 1))).item()
+
+      harmonic_mean = 2./(1./(acc_t1 + 1e-9) + 1./(acc_t2 + 1e-9))
+      return harmonic_mean
+
+    out = out.argmax(dim=1).cpu()
+
+
+    if mode == 'gcn':
+      return((1.0*(out == data.y)).sum()/len(data.y)).item()
+    if mode == 'eval':
+      return((1.0*(out == data)).sum()/len(data)).item()
+    return((1.0*(out == data['labels'])).sum()/len(data['labels'])).item()
+    
+def train_model(model_name, model, trainloader, devloader, epoches, lr, decay, output, split=1, mtl=False):
   
   eloss, eacc, edev_loss, edev_acc = [], [], [], []
 
@@ -50,12 +62,11 @@ def train_model(model_name, model, trainloader, devloader, epoches, lr, decay, o
 
     for j, data in enumerate(trainloader, 0):
 
-      torch.cuda.empty_cache()         
-      labels = data['labels'].to(model.device)     
-      
+      torch.cuda.empty_cache()               
       optimizer.zero_grad()
-      outputs = model(data['text'])
-      loss = model.loss_criterion(outputs, labels)
+
+      outputs = model(data)
+      loss = model.computeLoss(outputs, data)
    
       loss.backward()
       optimizer.step()
@@ -63,10 +74,10 @@ def train_model(model_name, model, trainloader, devloader, epoches, lr, decay, o
       # print statistics
       with torch.no_grad():
         if j == 0:
-          acc = compute_acc(labels, outputs)
+          acc = compute_acc(model_name, outputs, data, mtl)
           running_loss = loss.item()
         else: 
-          acc = (acc + compute_acc(labels, outputs))/2.0
+          acc = (acc + compute_acc(model_name, outputs, data, mtl))/2.0
           running_loss = (running_loss + loss.item())/2.0
 
       if (j+1)*100.0/batches - perc  >= 1 or j == batches-1:
@@ -81,35 +92,31 @@ def train_model(model_name, model, trainloader, devloader, epoches, lr, decay, o
     with torch.no_grad():
       out = None
       log = None
-      for k, data in enumerate(devloader, 0):
+      
+      for data in devloader:
         torch.cuda.empty_cache() 
-        labels = data['labels'].to(model.device) 
 
-        dev_out = model(data['text'])
-        if k == 0:
-          out = dev_out
-          log = labels
-        else: 
-          out = torch.cat((out, dev_out), 0)
-          log = torch.cat((log, labels), 0)
+        labels = data.y if 'gcn' in model_name else data['labels']
 
-      dev_loss = model.loss_criterion(out, log).item()
-      dev_acc = compute_acc(log, out)
+        dev_out = model(data)
+        out = dev_out if out is None else torch.cat((out, dev_out), 0)
+        log = labels if log is None else torch.cat((log, labels), 0)
+
+
+      dev_loss = model.loss_criterion(out, log.to(model.device)).item()
+      dev_acc = compute_acc('eval', out, log, mtl)
+
       eacc.append(acc)
       edev_loss.append(dev_loss)
       edev_acc.append(dev_acc) 
 
     band = False
-
-    measure = dev_acc
-
-    if model.best_acc is None or model.best_acc < measure:
-      model.save(os.path.join(output, f'{model_name}.pt'))
-      model.best_acc = measure
+    if model.best_acc is None or model.best_acc < dev_acc:
+      model.save(os.path.join(output, f'{model_name}_{split}.pt'))
+      model.best_acc = dev_acc
       band = True
 
-    ep_finish_print = f' acc: {acc:.3f} | dev_loss: {dev_loss:.3f} dev_acc: {dev_acc.reshape(-1)[0]:.3f}'
-    # ep_finish_print = f' acc: {acc} | dev_loss: {dev_loss:.3f} dev_acc: {dev_acc.reshape(-1)}'
+    ep_finish_print = f' acc: {acc:.3f} | dev_loss: {dev_loss:.3f} dev_acc: {dev_acc:.3f}'
 
     if band == True:
       print(bcolors.OKBLUE + bcolors.BOLD + last_printed + ep_finish_print + '\t[Weights Updated]' + bcolors.ENDC)
@@ -118,30 +125,84 @@ def train_model(model_name, model, trainloader, devloader, epoches, lr, decay, o
   return {'loss': eloss, 'acc': eacc, 'dev_loss': edev_loss, 'dev_acc': edev_acc}
 
 
+def PrepareGraph(data, beta=0.97) -> list:
+
+  alpha = [cosine_similarity(i) for i in data['encodings']]
+  edge_index = [list(zip(*np.where(graphs>beta))) for graphs in alpha]
+  print(beta, np.mean([len(i) for i in edge_index]))
+  edge_index = [torch.tensor(graph).t().contiguous() for graph in edge_index]
+  return edge_index, torch.tensor(data['encodings']), torch.tensor(data['labels'])
+
+
+def prepareDataLoader(model_name, data_train, data_dev = None, batch_size = None, eval=False) -> DataLoader:
+
+  devloader = None
+  if 'gcn' in model_name:
+
+    edge_index, encodings, labels = PrepareGraph(data_train)
+    trainloader = GLoader([GData(x=encodings[i], y=labels[i], edge_index=edge_index[i]) for i in range(len(encodings))], 
+          batch_size=batch_size, shuffle=(not eval), num_workers=4, worker_init_fn=seed_worker)
+    
+    if data_dev is not None:
+      edge_index, encodings, labels = PrepareGraph(data_dev)
+      devloader = GLoader([GData(x=encodings[i], y=labels[i], edge_index=edge_index[i]) for i in range(len(encodings))], 
+            batch_size=batch_size, shuffle=(not eval), num_workers=4, worker_init_fn=seed_worker)
+    return trainloader, devloader
+  
+
+  trainloader = DataLoader(Data(data_train), batch_size=batch_size, shuffle=(not eval), num_workers=4, worker_init_fn=seed_worker)
+  if data_dev is not None:
+    devloader = DataLoader(Data(data_dev), batch_size=batch_size, shuffle=(not eval), num_workers=4, worker_init_fn=seed_worker)
+  return trainloader, devloader
+
+
+
 def train_model_CV(model_name, lang, data, splits = 5, epoches = 4, batch_size = 8, max_length = 120, 
-                    interm_layer_size = 64, lr = 1e-5,  decay=2e-5, output='logs', multitask=False,
-                    model_mode='offline'):
+                    interm_layer_size = 64, lr = 1e-5,  decay=2e-5, graph_hidden_chanels = None, 
+                    features_nodes = 32, output='logs', model_mode='offline'):
 
   history = []
   skf = StratifiedKFold(n_splits=splits, shuffle=True, random_state = 23)
   
-  tmplb = data['labels']
-  model_params = {'mode':model_mode, 'lang':lang}
-  for i, (train_index, test_index) in enumerate(skf.split(data['text'], tmplb)):  
+  model_params = {'mode':model_mode, 'hidden_channels':graph_hidden_chanels, 
+                  'features_nodes':features_nodes, 'max_length': max_length, 
+                  'interm_layer_size':interm_layer_size}
+
+  for i, (train_index, test_index) in enumerate(skf.split(np.zeros_like(data['labels']), data['labels'])):  
     
     history.append({'loss': [], 'acc':[], 'dev_loss': [], 'dev_acc': []})
-    model = SeqModel(interm_layer_size, max_length, **model_params)
-
-    trainloader = DataLoader(Data({'text':data['text'][train_index], 'label': data['labels'][train_index]}), batch_size=batch_size, shuffle=True, num_workers=4, worker_init_fn=seed_worker)
-    devloader = DataLoader(Data({'text':data['text'][test_index], 'label':data['labels'][test_index]}), batch_size=batch_size, shuffle=True, num_workers=4, worker_init_fn=seed_worker)
-
+    model = MODELS[model_name](language=lang, **model_params)
+    
+    trainloader, devloader = prepareDataLoader(model_name=model_name, data_train={key:data[key][train_index] for key in data.keys()},
+                                              data_dev = {key:data[key][test_index] for key in data.keys()}, batch_size=batch_size)
     history.append(train_model(model_name, model, trainloader, devloader, epoches, lr, decay, output, i+1))
-      
+    
     print('Training Finished Split: {}'. format(i+1))
     del trainloader
-    del model
     del devloader
-    break
+    del model
+  return history
+
+
+def train_model_dev(model_name, lang, data_train, data_dev, epoches = 4, batch_size = 8, max_length = 120, 
+                    interm_layer_size = 64, lr = 1e-5, decay=2e-5, graph_hidden_chanels = None, 
+                    features_nodes = 32, output='logs', model_mode='offline', mtl = False):
+
+  history = []
+  
+  model_params = {'mode':model_mode, 'hidden_channels':graph_hidden_chanels,
+                 'features_nodes':features_nodes, 'max_length': max_length,
+                 'interm_layer_size':interm_layer_size, 'multitask': mtl}
+
+  history.append({'loss': [], 'acc':[], 'dev_loss': [], 'dev_acc': []})
+  model = MODELS[model_name](language=lang, **model_params)
+
+  trainloader, devloader = prepareDataLoader(model_name, data_train, data_dev, batch_size)
+  history.append(train_model(model_name, model, trainloader, devloader, epoches, lr, decay, output, mtl=mtl))
+
+  del trainloader
+  del model
+  del devloader
   return history
 
 def save_predictions(idx, y_hat, language, path):
@@ -153,3 +214,56 @@ def save_predictions(idx, y_hat, language, path):
         with open(os.path.join(path, idx[i] + '.xml'), 'w') as file:
             file.write('<author id=\"{}\"\n\tlang=\"{}\"\n\ttype=\"{}\"\n/>'.format(idx[i], language, y_hat[i]))
     print(f'{bcolors.BOLD}{bcolors.OKGREEN}Predictions Done Successfully{bcolors.ENDC}')
+
+
+def predict(model_name, data, language, splits=1, batch_size=64, interm_layer_size = 64, max_length = 120,
+                    graph_hidden_chanels = None, features_nodes = 32, model_mode='offline'):
+
+  model_params = {'mode':model_mode, 'hidden_channels':graph_hidden_chanels,
+                'features_nodes':features_nodes, 'max_length': max_length,
+                'interm_layer_size':interm_layer_size}
+
+  model = MODELS[model_name](language=language, **model_params) 
+  devloader,_ = prepareDataLoader(model_name=model_name, data_train={key:data[key] for key in data.keys()}, batch_size=batch_size, eval=True)
+
+  model.eval()
+  y_hat = 0
+  
+  for i in range(splits):
+
+    model.load(f'logs/{model_name}_{i+1}.pt')
+
+    with torch.no_grad():
+      out = None
+
+      for data in devloader: 
+        dev_out = model(data)
+        out = dev_out if out is None else torch.cat((out, dev_out), 0)
+
+    y_hat += out.argmax(dim=1).cpu().numpy()
+  return np.where(y_hat > (splits>>1), 1, 0)
+
+
+def encode(model_name, data, language, data_path, splits=1, batch_size=64, interm_layer_size = 64, max_length = 120,
+                    graph_hidden_chanels = None, features_nodes = 32, model_mode='offline'):
+
+  model_params = {'mode':model_mode, 'hidden_channels':graph_hidden_chanels,
+                'features_nodes':features_nodes, 'max_length': max_length,
+                'interm_layer_size':interm_layer_size}
+
+  model = MODELS[model_name](language=language, **model_params) 
+  devloader,_ = prepareDataLoader(model_name=model_name, data_train={key:data[key] for key in data.keys()}, batch_size=batch_size, eval=True)
+
+  model.eval()
+
+  model.load(f'logs/{model_name}_1.pt')
+
+  with torch.no_grad():
+    out = None
+
+    for data in devloader: 
+      dev_out = model(data, get_encoding=True)
+      out = dev_out if out is None else torch.cat((out, dev_out), 0)
+  torch.save(out.cpu(), f"logs/{'train' if 'train' in data_path else 'test'}_gcnenc_{language}.pt")
+  print(f"{bcolors.OKCYAN}{bcolors.BOLD}Encodings Saved Successfully{bcolors.ENDC}")
+  return out.cpu().numpy()

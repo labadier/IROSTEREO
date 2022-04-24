@@ -1,34 +1,36 @@
 from transformers import AutoModel, AutoTokenizer
-from utils.utils import bcolors
+from utils.utils import bcolors, Data
 from utils.params import params
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 import torch, os, random, numpy as np
+
+
+
+class MultiTaskLoss(torch.nn.Module):
+    def __init__(self):
+        super(MultiTaskLoss, self).__init__()
+        
+    def sigmoid(self, z ):
+      return 1./(1 + torch.exp(-z))
+
+    def forward(self, outputs, labels):
+
+      o_t1 = self.sigmoid(outputs[:,0]) 
+      loss_t1 = -(labels[:,0]*torch.log(o_t1) + (1. - labels[:,0])*torch.log(1. - o_t1))
+      o_t2 = self.sigmoid(outputs[:,1]) 
+      loss_t2 = -(labels[:,1]*torch.log(o_t2) + (1. - labels[:,1])*torch.log(1. - o_t2))  
+
+      loss_t2 = (o_t2*torch.where(labels[:,1] == -1, 0, 1)).mean()
+      loss_t1 = (o_t1*torch.where(labels[:,0] == -1, 0, 1)).mean()
+
+      harmonic_mean = 2./(1./(loss_t1 + 1e-9) + 1./(loss_t2 + 1e-9))
+      return harmonic_mean
+
 
 def seed_worker(worker_id):
   worker_seed = torch.initial_seed() % 2**32
   np.random.seed(worker_seed)
   random.seed(worker_seed)
-
-class Data(Dataset):
-
-  def __init__(self, data):
-
-    self.data = {i:data[i] for i in data.keys() if i != 'label'}
-    self.label = data['label'] if 'label' in data.keys() else None
-
-  def __len__(self):
-    for i in self.data:
-      return len(self.data[i])
-
-  def __getitem__(self, idx):
-
-    if torch.is_tensor(idx):
-      idx = idx.tolist()
-    
-    ret = {i:self.data[i][idx] for i in self.data.keys() if i != 'label'}
-    if self.label is not None:
-      ret['labels'] = self.label[idx]
-    return ret
 
 def HugginFaceLoad(language, weigths_source):
 
@@ -40,29 +42,30 @@ def HugginFaceLoad(language, weigths_source):
 
 class SeqModel(torch.nn.Module):
 
-  def __init__(self, interm_size, max_length, **kwargs):
+  def __init__(self, language, **kwargs):
 
     super(SeqModel, self).__init__()
 		
     self.mode = kwargs['mode']
     self.best_acc = None
-    self.lang = kwargs['lang']
-    self.max_length = max_length
-    self.interm_neurons = interm_size
-    self.transformer, self.tokenizer = HugginFaceLoad( kwargs['lang'], self.mode)
+    self.lang = language
+    self.max_length = kwargs['max_length']
+    self.interm_neurons = kwargs['interm_layer_size']
+    self.transformer, self.tokenizer = HugginFaceLoad( language, self.mode)
     self.intermediate = torch.nn.Sequential(torch.nn.Linear(in_features=768, out_features=self.interm_neurons), torch.nn.LeakyReLU(),
                                             torch.nn.Linear(in_features=self.interm_neurons, out_features=self.interm_neurons>>1),
                                             torch.nn.LeakyReLU())
     
     self.classifier = torch.nn.Linear(in_features=self.interm_neurons>>1, out_features=2)
-    self.loss_criterion = torch.nn.CrossEntropyLoss()
+    
+    self.loss_criterion = MultiTaskLoss() if kwargs['multitask'] == True else torch.nn.CrossEntropyLoss()
     
     self.device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
     self.to(device=self.device)
 
   def forward(self, data, get_encoding=False):
 
-    ids = self.tokenizer(data, return_tensors='pt', truncation=True, padding=True, max_length=self.max_length).to(device=self.device)
+    ids = self.tokenizer(data['text'], return_tensors='pt', truncation=True, padding=True, max_length=self.max_length).to(device=self.device)
 
     X = self.transformer(**ids)[0]
 
@@ -123,3 +126,6 @@ class SeqModel(torch.nn.Module):
     del devloader
     if get_log: return out, log
     return out
+
+  def computeLoss(self, outputs, data):
+    return self.loss_criterion(outputs, data['labels'].to(self.device) )

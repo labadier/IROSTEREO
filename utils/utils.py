@@ -2,6 +2,8 @@ import numpy as np, xml.etree.ElementTree as XT, glob
 from utils.params import params
 import os, re, pandas as pd
 from matplotlib import pyplot as plt
+from torch.utils.data import Dataset
+import torch
 
 class bcolors:
     HEADER = '\033[95m'
@@ -14,6 +16,22 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
+class Data(Dataset):
+
+  def __init__(self, data):
+
+    self.data = data
+    
+  def __len__(self):
+    return len(self.data[list(self.data.keys())[0]])
+
+  def __getitem__(self, idx):
+
+    if torch.is_tensor(idx):
+      idx = idx.tolist()
+
+    ret = {key: self.data[key][idx] for key in self.data.keys()}
+    return ret
 
 class TokensMixed(object):
   
@@ -68,7 +86,7 @@ def read_truth(data_path):
         target = {}
         for line in target_file:
             inf = line.split(':::')
-            target[inf[0]] = int (inf[1]) #! Change for IROSTEREO int (not 'NI' in inf[1])
+            target[inf[0]] = int (inf[1])  #! Change for IROSTEREO int (not 'NI' in inf[1]) and for HATER int (inf[1]) 
 
     return target
 
@@ -76,7 +94,6 @@ def removeTokens(text) -> str:
   return " ".join([i for i in text.split() if i[0] != '#' or i[-1] != '#'])
   
 
-    
 def load_data_PAN(data_path, labeled=True):
 
     addrs = sorted(np.array(glob.glob(data_path + '/*.xml')))
@@ -107,6 +124,14 @@ def load_data_PAN(data_path, labeled=True):
     if labeled == True:
         return tweets, indx, np.array(label)
     return tweets, indx
+
+def loadAugmentedData(data_path):
+
+  data = pd.read_csv(data_path)
+  text = data['text'].to_numpy()
+  labels = data[['hate','irony']].astype(int).to_numpy()
+
+  return text, labels
 
 def ConverToClass(tweets, labels):
 
@@ -151,5 +176,5 @@ def evaluate(truthPath, dataPath, language):
     node = XT.parse(adr).getroot()
     y += [target[node.attrib['id']]]
     y_hat += [int(node.attrib['type'])]
-
-  classification_report(y, y_hat, target_names=['Negative', 'Positive'],  digits=4, zero_division=1)
+  print(y_hat, y)
+  print(classification_report(y, y_hat, target_names=['Negative', 'Positive'],  digits=4, zero_division=1))
