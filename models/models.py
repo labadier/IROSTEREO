@@ -1,3 +1,5 @@
+from posixpath import split
+from black import out
 import torch, os, random
 from utils.params import params
 from utils.utils import Data
@@ -25,6 +27,9 @@ def compute_acc(mode, out, data, mtl=False):
   with torch.no_grad():
   
     if mtl == True:
+
+      if mode == 'eval':
+        data = {'labels':data}
       out = torch.where(sigmoid(out) > 0.5, 1, 0).cpu()
       acc_t1 = torch.where(data['labels'][:,0] == -1, 0, 1)*(out[:,0] == data['labels'][:,0])
       acc_t1 = (torch.sum(acc_t1)/torch.sum(torch.where(data['labels'][:,0] == -1, 0, 1))).item()
@@ -45,6 +50,8 @@ def compute_acc(mode, out, data, mtl=False):
     return((1.0*(out == data['labels'])).sum()/len(data['labels'])).item()
     
 def train_model(model_name, model, trainloader, devloader, epoches, lr, decay, output, split=1, mtl=False):
+
+  print(output)
   
   eloss, eacc, edev_loss, edev_acc = [], [], [], []
 
@@ -198,8 +205,10 @@ def train_model_dev(model_name, lang, data_train, data_dev, epoches = 4, batch_s
   model = MODELS[model_name](language=lang, **model_params)
 
   trainloader, devloader = prepareDataLoader(model_name, data_train, data_dev, batch_size)
-  history.append(train_model(model_name, model, trainloader, devloader, epoches, lr, decay, output, mtl=mtl))
-
+  print(output)
+  history.append(train_model(model_name=model_name, model=model, trainloader=trainloader, 
+                  devloader=devloader, epoches=epoches, lr=lr, decay=decay, output=output, 
+                  split=1, mtl=mtl))
   del trainloader
   del model
   del devloader

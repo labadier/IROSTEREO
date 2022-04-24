@@ -1,6 +1,5 @@
 #%%
 import argparse, sys, os, numpy as np, torch, random
-from parso import parse
 from matplotlib.pyplot import axis
 from utils.params import params
 from utils.utils import load_data_PAN, ConverToClass, plot_training
@@ -24,7 +23,7 @@ def check_params(args=None):
   parser.add_argument('-l', metavar='language', default='EN', help='Task Language')
   parser.add_argument('-mode', metavar='mode', help='task')
   parser.add_argument('-phase', metavar='phase', help='Phase')
-  parser.add_argument('-output', metavar='output', help='Output Path')
+  parser.add_argument('-output', metavar='output', default = 'logs', help='Output Path')
   parser.add_argument('-lr', metavar='lrate', default = params.LR, type=float, help='learning rate')
   parser.add_argument('-tmode', metavar='tmode', default = 'online', help='Encoder Weights Mode')
   parser.add_argument('-decay', metavar='decay', default = params.DECAY, type=float, help='learning rate decay')
