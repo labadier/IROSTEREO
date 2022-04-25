@@ -129,7 +129,7 @@ def loadAugmentedData(data_path):
 
   data = pd.read_csv(data_path)
   text = data['text'].to_numpy()
-  labels = data[['hate','irony']].astype(int).to_numpy()
+  labels = data['label'].astype(int).to_numpy()
 
   return text, labels
 
