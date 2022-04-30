@@ -130,7 +130,10 @@ def loadAugmentedData(data_path):
   data = pd.read_csv(data_path)
   text = data['text'].to_numpy()
   labels = data['label'].astype(int).to_numpy()
+  m = np.random.permutation(len(labels))
 
+  text = text[m]
+  labels = labels[m]
   return text, labels
 
 def ConverToClass(tweets, labels):

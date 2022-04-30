@@ -111,7 +111,7 @@ class SeqModel(torch.nn.Module):
       log = None
       for k, data in enumerate(devloader, 0):
         torch.cuda.empty_cache() 
-        inputs = data['text']
+        inputs = data
     
         dev_out, dev_log = self.forward(inputs, True)
         if k == 0:

@@ -89,7 +89,7 @@ if __name__ == '__main__':
         history = train_model_dev(model_name=params.models[language].split('/')[-1], lang=language, data_train=dataTrain,
                       data_dev={'text':text, 'labels': labels}, epoches=epoches, batch_size=batch_size, max_length=max_length, 
                       interm_layer_size = interm_layer_size, lr = learning_rate,  decay=decay, output=output, model_mode=mode_weigth,
-                      mtl = mtl)
+                      mtl = not mtl)
       
       plot_training(history[-1], language, 'acc')
       exit(0)
@@ -102,10 +102,10 @@ if __name__ == '__main__':
       text,index = load_data_PAN(os.path.join(train_path, language), labeled=False)
 
       model_params = {'mode':mode_weigth, 'max_length': max_length, 
-                  'interm_layer_size':interm_layer_size, 'lang':language}
+                  'interm_layer_size':interm_layer_size, 'lang':language, 'multitask':mtl}
 
       model = SeqModel(language=language, **model_params)
-      model.load(os.path.join(weight_path, f"{params.models[language].split('/')[-1]}.pt"))
+      model.load(os.path.join(weight_path, f"{params.models[language].split('/')[-1]}_1.pt"))
 
       encodings = [model.encode( {'text':i} , batch_size, get_log=False) for i in text]
     
