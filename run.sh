@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # Train irony
-
 python main.py -mode encoder -phase train -lr 1e-5 -decay 1e-5 -tmode offline -interm_layer 64 -epoches 12 -bs 64 -l en -mtl stl -tp data/irony_train.csv -dp data/irony_test.csv
 
 

@@ -6,6 +6,7 @@ from os import remove
 
 class params:
 
+  #Hate-speech-CNERG/bert-base-uncased-hatexplain
   models = {'fr': 'flaubert/flaubert_base_cased', 'en': 'cardiffnlp/twitter-roberta-base-irony',
           'es':'finiteautomata/beto-sentiment-analysis', 'de':'oliverguhr/german-sentiment-bert',
           'it': 'dbmdz/bert-base-italian-uncased', 'pt':'neuralmind/bert-base-portuguese-cased'}

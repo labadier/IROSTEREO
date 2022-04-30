@@ -68,7 +68,7 @@ if __name__ == '__main__':
       if os.path.exists('./logs') == False:
         os.system('mkdir logs')
 
-      if mtl: #! Change not
+      if not mtl: #! Change not because it was to train irony and hate with their respective data
         text, _, labels = load_data_PAN(os.path.join(train_path, language))
         text, labels = ConverToClass(text, labels)
         dataTrain = {'text':text, 'labels': labels}
@@ -81,7 +81,7 @@ if __name__ == '__main__':
                     splits=splits, epoches=epoches, batch_size=batch_size, max_length=max_length, interm_layer_size = interm_layer_size,
                     lr = learning_rate,  decay=decay, model_mode=mode_weigth)
       else:
-        if mtl:  #! Change not
+        if not mtl:  #! Change not
           text, _, labels = load_data_PAN(os.path.join(train_path, language))
           text, labels = ConverToClass(text, labels)
         else:
@@ -100,8 +100,11 @@ if __name__ == '__main__':
         Get Encodings for each author's message from the Transformer-based encoders
       '''
       text,index = load_data_PAN(os.path.join(train_path, language), labeled=False)
-      model_params = {'mode':mode_weigth, 'lang':language}
-      model = SeqModel(interm_layer_size, max_length, **model_params)
+
+      model_params = {'mode':mode_weigth, 'max_length': max_length, 
+                  'interm_layer_size':interm_layer_size, 'lang':language}
+
+      model = SeqModel(language=language, **model_params)
       model.load(os.path.join(weight_path, f"{params.models[language].split('/')[-1]}.pt"))
 
       encodings = [model.encode( {'text':i} , batch_size, get_log=False) for i in text]
