@@ -178,6 +178,7 @@ def evaluate(truthPath, dataPath, language):
   for adr in addrs:
     node = XT.parse(adr).getroot()
     y += [target[node.attrib['id']]]
-    y_hat += [int(node.attrib['type'])]
-  print(y_hat, y)
+    y_hat += [int ( not 'NI' in node.attrib['type'])]  #! Change for IROSTEREO int ( not 'NI' in node.attrib['type']) and for HATER int (node.attrib['type'])
+
+  # print(y_hat, y)
   print(classification_report(y, y_hat, target_names=['Negative', 'Positive'],  digits=4, zero_division=1))
