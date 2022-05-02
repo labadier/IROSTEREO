@@ -1,9 +1,4 @@
 
-from calendar import EPOCH
-from os import remove
-
-
-
 class params:
 
   #Hate-speech-CNERG/bert-base-uncased-hatexplain

@@ -86,7 +86,7 @@ def read_truth(data_path):
         target = {}
         for line in target_file:
             inf = line.split(':::')
-            target[inf[0]] = int (inf[1])  #! Change for IROSTEREO int (not 'NI' in inf[1]) and for HATER int (inf[1]) 
+            target[inf[0]] = int (not 'NI' in inf[1])  #! Change for IROSTEREO int (not 'NI' in inf[1]) and for HATER int (inf[1]) 
 
     return target
 

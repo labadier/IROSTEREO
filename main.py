@@ -1,5 +1,6 @@
 #%%
 import argparse, sys, os, numpy as np, torch, random
+from sklearn import svm
 from matplotlib.pyplot import axis
 from utils.params import params
 from utils.utils import load_data_PAN, ConverToClass, plot_training
@@ -10,7 +11,7 @@ from sklearn.metrics import classification_report, accuracy_score
 from sklearn.model_selection import StratifiedKFold
 from models.Encoder import SeqModel
 from models.Logit import K_Impostor
-
+from sklearn.svm import LinearSVC
 
 
 torch.manual_seed(0)
@@ -22,6 +23,7 @@ def check_params(args=None):
 
   parser.add_argument('-l', metavar='language', default='EN', help='Task Language')
   parser.add_argument('-mode', metavar='mode', help='task')
+  parser.add_argument('-model', metavar='model', help='model to encode')
   parser.add_argument('-phase', metavar='phase', help='Phase')
   parser.add_argument('-output', metavar='output', default = 'logs', help='Output Path')
   parser.add_argument('-lr', metavar='lrate', default = params.LR, type=float, help='learning rate')
@@ -59,6 +61,7 @@ if __name__ == '__main__':
   weight_path = parameters.wp
   mode = parameters.mode
   mtl = (parameters.mtl == 'mtl')
+  model_name = parameters.model
 
   output = parameters.output
   
@@ -102,10 +105,14 @@ if __name__ == '__main__':
       text,index = load_data_PAN(os.path.join(train_path, language), labeled=False)
 
       model_params = {'mode':mode_weigth, 'max_length': max_length, 
-                  'interm_layer_size':interm_layer_size, 'lang':language, 'multitask':mtl}
+                  'interm_layer_size':interm_layer_size, 'lang':language, 'multitask':mtl,
+                  'model_name':model_name}
 
       model = SeqModel(language=language, **model_params)
-      model.load(os.path.join(weight_path, f"{params.models[language].split('/')[-1]}_1.pt"))
+
+      if weight_path is not None:
+        model.load(os.path.join(weight_path, f"{params.models[language].split('/')[-1]}_1.pt"))
+      else: print(f"{bcolors.WARNING}{bcolors.BOLD}No Weights Loaded{bcolors.ENDC}")
 
       encodings = [model.encode( {'text':i} , batch_size, get_log=False) for i in text]
     
@@ -119,14 +126,20 @@ if __name__ == '__main__':
         os.system('mkdir logs')
 
       _, _, labels = load_data_PAN(os.path.join(train_path, language))
-      dataTrain = {'encodings':torch.load(f"logs/train_penc_{language}.pt"), 'labels': labels}
+      dataTrain = {'encodings':torch.load(f"logs/irony/train_penc_{language}.pt")+ torch.load(f"logs/hate/train_penc_{language}.pt"),
+                    'sem_encodings': torch.load(f"logs/raw/train_penc_{language}.pt"),
+                    'labels': labels}
       
       if dev_path is None:
         history = train_model_CV(model_name='gcn', lang=language, data=dataTrain, splits=splits, epoches=epoches, batch_size=batch_size, 
                                   max_length=max_length, graph_hidden_chanels = interm_layer_size, lr = learning_rate,  decay=decay, model_mode=mode_weigth)
       else:
         _, _, labels = load_data_PAN(os.path.join(dev_path, language))
-        dataDev = {'encodings':torch.load(f"logs/test_penc_{language}.pt"), 'labels': labels}
+
+        dataDev = {'encodings':torch.load(f"logs/irony/test_penc_{language}.pt")+ torch.load(f"logs/hate/test_penc_{language}.pt"),
+                  'sem_encodings': torch.load(f"logs/raw/test_penc_{language}.pt"),
+                  'labels': labels}
+
         history = train_model_dev(model_name='gcn', lang=language, data_train=dataTrain, data_dev=dataDev, epoches=epoches,
                                 batch_size=batch_size, max_length=max_length, graph_hidden_chanels = interm_layer_size,
                                 lr = learning_rate,  decay=decay, model_mode=mode_weigth)
@@ -140,8 +153,10 @@ if __name__ == '__main__':
         os.system('mkdir logs')
 
       _, idx = load_data_PAN(os.path.join(dev_path, language), labeled = False)
-      
-      data = {'encodings':torch.load(f"logs/{'train' if 'train' in dev_path else 'test'}_penc_{language}.pt"), 'labels':np.zeros((len(idx), ))}
+      data = {'encodings':torch.load(f"logs/irony/{'train' if 'train' in dev_path else 'test'}_penc_{language}.pt") +\
+              torch.load(f"logs/hate/{'train' if 'train' in dev_path else 'test'}_penc_{language}.pt"),
+              'sem_encodings': torch.load(f"logs/raw/{'train' if 'train' in dev_path else 'test'}_penc_{language}.pt"),
+              'labels':np.zeros((len(idx), ))}
       y_hat = predict(model_name='gcn', data=data, language=language, splits = splits, batch_size = batch_size,
                       graph_hidden_chanels = interm_layer_size)
 
@@ -154,7 +169,11 @@ if __name__ == '__main__':
 
       _, idx = load_data_PAN(os.path.join(dev_path, language), labeled = False)
       
-      data = {'encodings':torch.load(f"logs/{'train' if 'train' in dev_path else 'test'}_penc_{language}.pt"), 'labels':np.zeros((len(idx), ))}
+      data = {'encodings':torch.load(f"logs/irony/{'train' if 'train' in dev_path else 'test'}_penc_{language}.pt") +\
+              torch.load(f"logs/hate/{'train' if 'train' in dev_path else 'test'}_penc_{language}.pt"),
+              'sem_encodings': torch.load(f"logs/raw/{'train' if 'train' in dev_path else 'test'}_penc_{language}.pt"),
+              'labels':np.zeros((len(idx), ))}
+
       encode = encode(model_name='gcn', data=data, language=language, data_path=dev_path, splits = splits, batch_size = batch_size,
                       graph_hidden_chanels = interm_layer_size)
       exit(0)
@@ -195,6 +214,36 @@ if __name__ == '__main__':
       overl_acc += acc
       print('Report Split: {} - acc: {}{}'.format(i+1, np.round(acc, decimals=2), '\n'))
       print(metrics)
+
+    print(f'Accuracy {language}: {np.round(overl_acc/splits, decimals=2)}')
+    save_predictions(idx, np.where(Y_Test > (splits>>1), 1, 0), language, output)
+
+  if mode == "svm":
+
+    ''' 
+      Classify the profiles with Impostors Method 
+    '''
+
+    _, _, labels = load_data_PAN(os.path.join(train_path, language.lower()), labeled=True)
+    _, idx  = load_data_PAN(os.path.join(dev_path, language.lower()), labeled=False)
+
+    encodings = torch.load('logs/train_gcnenc_en.pt')
+    encodings_test = torch.load('logs/test_gcnenc_en.pt')    
+      
+    skf = StratifiedKFold(n_splits=splits, shuffle=True, random_state = 23)   
+    overl_acc = 0
+
+    Y_Test = np.zeros((len(encodings_test),))
+    for i, (train_index, test_index) in enumerate(skf.split(encodings, labels)):
+      
+      svm_model_linear = LinearSVC( ).fit(encodings[train_index], labels[train_index])
+      print(f'train svm split {i+1}: {svm_model_linear.score(encodings[train_index], labels[train_index])}')
+      
+      svm_predictions = svm_model_linear.predict(encodings_test)
+      Y_Test += svm_predictions
+      acc = svm_model_linear.score(encodings[train_index], labels[train_index])
+      overl_acc += acc
+      print('Report Split: {} - acc: {}{}'.format(i+1, np.round(acc, decimals=2), '\n'))
 
     print(f'Accuracy {language}: {np.round(overl_acc/splits, decimals=2)}')
     save_predictions(idx, np.where(Y_Test > (splits>>1), 1, 0), language, output)

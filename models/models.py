@@ -15,6 +15,8 @@ from sklearn.metrics.pairwise import cosine_similarity
 from torch_geometric.data import Data as GData
 from torch_geometric.loader import DataLoader as GLoader
 
+import networkx
+
 MODELS = {'gcn': GCN} | {params.models[language].split('/')[-1]: SeqModel for language in params.models.keys()}
 
 def sigmoid( z ):
@@ -49,8 +51,6 @@ def compute_acc(mode, out, data, mtl=False):
     
 def train_model(model_name, model, trainloader, devloader, epoches, lr, decay, output, split=1, mtl=False):
 
-  print(output)
-  
   eloss, eacc, edev_loss, edev_acc = [], [], [], []
 
   optimizer = model.makeOptimizer(lr=lr, decay=decay)
@@ -130,27 +130,72 @@ def train_model(model_name, model, trainloader, devloader, epoches, lr, decay, o
   return {'loss': eloss, 'acc': eacc, 'dev_loss': edev_loss, 'dev_acc': edev_acc}
 
 
-def PrepareGraph(data, beta=0.97) -> list:
+def PrepareGraph(data, beta=0.97, avecPrototypes = True) -> tuple:
 
-  alpha = [cosine_similarity(i) for i in data['encodings']]
-  edge_index = [list(zip(*np.where(graphs>beta))) for graphs in alpha]
-  print(beta, np.mean([len(i) for i in edge_index]))
-  edge_index = [torch.tensor(graph).t().contiguous() for graph in edge_index]
-  return edge_index, torch.tensor(data['encodings']), torch.tensor(data['labels'])
+  with torch.no_grad():
+
+    alpha = [cosine_similarity(i) for i in data['sem_encodings']]
+    edge_index = [list(zip(*np.where(graphs>beta))) for graphs in alpha]  #**
+
+    mask = torch.zeros(data['sem_encodings'].shape[:-1])
+    if avecPrototypes:
+      print(f"{bcolors.OKGREEN}{bcolors.BOLD}Computing Prototypes{bcolors.ENDC}:", end="") 
+      
+      perc = 0
+      for index, graph in enumerate(edge_index):
+
+        if (index+1)/len(edge_index) - perc >= 0.0001:
+          perc = (index+1)/len(edge_index)
+          print(f"\r{bcolors.OKGREEN}{bcolors.BOLD}Computing Prototypes{bcolors.ENDC}: {perc*100.0:.2f}%", end="") 
+
+        G = networkx.Graph(graph)
+        comp = [sorted(c) for c in next(networkx.community.girvan_newman(G))]
+        comp_index = {k:v for v in range(len(comp)) for k in comp[v] }
+
+        G = networkx.Graph([i for i in G.edges if comp_index[i[0]] == comp_index[i[1]]])
+        Edegree = [np.mean([G.degree[j] for j in comp[i]]) for i in range(len(comp))]
+        Prototypes = [int(np.ceil(np.log(len(comp[i]))/np.log(Edegree[i]))) + (Edegree[i] <= 2) for i in range(len(comp))]
+
+        bw = networkx.betweenness_centrality(G)
+        comp = [sorted([(node, bw[node]) for node in comp[i]], reverse=True, key = lambda x : x[1])[:Prototypes[i]] for i in range(len(comp))]
+        mask[index][[node[0] for c in comp for node in c]] = 1.0
+        mask[index] /= torch.sum(mask[index])
+      
+      mask = mask.unsqueeze(1)
+      print(f"\r{bcolors.OKGREEN}{bcolors.BOLD}Computing Prototypes{bcolors.ENDC}: {perc*100.0:.2f}%") 
+    
+      edge_index = [torch.tensor(graph).t().contiguous() for graph in edge_index]
+      return edge_index, mask, torch.tensor(data['labels'])
+
+    edge_index = [torch.tensor(graph).t().contiguous() for graph in edge_index]
+    return edge_index, torch.tensor(data['labels'])
 
 
 def prepareDataLoader(model_name, data_train, data_dev = None, batch_size = None, eval=False) -> DataLoader:
 
   devloader = None
   if 'gcn' in model_name:
+    
+    encodings = torch.tensor(data_train['encodings'])
+    
+    edge_index, prototypes, labels = PrepareGraph(data_train)
+    # # torch.save(prototypes, 'logs/train_pot.pt')
+    # edge_index, labels = PrepareGraph(data_train, avecPrototypes=False)
+    # prototypes = torch.load('logs/train_pot.pt')
 
-    edge_index, encodings, labels = PrepareGraph(data_train)
-    trainloader = GLoader([GData(x=encodings[i], y=labels[i], edge_index=edge_index[i]) for i in range(len(encodings))], 
+    trainloader = GLoader([GData(x=encodings[i], y=labels[i], edge_index=edge_index[i], prototypes=prototypes[i].view(1, 1, -1)) for i in range(len(encodings))], 
           batch_size=batch_size, shuffle=(not eval), num_workers=4, worker_init_fn=seed_worker)
     
     if data_dev is not None:
-      edge_index, encodings, labels = PrepareGraph(data_dev)
-      devloader = GLoader([GData(x=encodings[i], y=labels[i], edge_index=edge_index[i]) for i in range(len(encodings))], 
+
+      encodings = torch.tensor(data_dev['encodings'])
+
+      edge_index, prototypes, labels = PrepareGraph(data_dev)
+      # torch.save(prototypes, 'logs/test_pot.pt')
+      # edge_index, labels = PrepareGraph(data_dev, avecPrototypes=False)
+      # prototypes = torch.load('logs/test_pot.pt')
+
+      devloader = GLoader([GData(x=encodings[i], y=labels[i], edge_index=edge_index[i], prototypes=prototypes[i].view(1, 1, -1)) for i in range(len(encodings))], 
             batch_size=batch_size, shuffle=(not eval), num_workers=4, worker_init_fn=seed_worker)
     return trainloader, devloader
   
@@ -203,7 +248,6 @@ def train_model_dev(model_name, lang, data_train, data_dev, epoches = 4, batch_s
   model = MODELS[model_name](language=lang, **model_params)
 
   trainloader, devloader = prepareDataLoader(model_name, data_train, data_dev, batch_size)
-  print(output)
   history.append(train_model(model_name=model_name, model=model, trainloader=trainloader, 
                   devloader=devloader, epoches=epoches, lr=lr, decay=decay, output=output, 
                   split=1, mtl=mtl))
@@ -219,7 +263,7 @@ def save_predictions(idx, y_hat, language, path):
     
     for i in range(len(idx)):
         with open(os.path.join(path, idx[i] + '.xml'), 'w') as file:
-            file.write('<author id=\"{}\"\n\tlang=\"{}\"\n\ttype=\"{}\"\n/>'.format(idx[i], language, y_hat[i]))
+            file.write(f'<author id=\"{idx[i]}\"\n\tlang=\"{language}\"\n\ttype=\"{["NI","I"][y_hat[i]]}\"\n/>')
     print(f'{bcolors.BOLD}{bcolors.OKGREEN}Predictions Done Successfully{bcolors.ENDC}')
 
 
@@ -231,13 +275,13 @@ def predict(model_name, data, language, splits=1, batch_size=64, interm_layer_si
                 'interm_layer_size':interm_layer_size}
 
   model = MODELS[model_name](language=language, **model_params) 
-  devloader,_ = prepareDataLoader(model_name=model_name, data_train={key:data[key] for key in data.keys()}, batch_size=batch_size, eval=True)
+  devloader,_ = prepareDataLoader(model_name=model_name, data_train=data, batch_size=batch_size, eval=True)
 
   model.eval()
   y_hat = 0
   
   for i in range(splits):
-
+    print('split', i+1)
     model.load(f'logs/{model_name}_{i+1}.pt')
 
     with torch.no_grad():

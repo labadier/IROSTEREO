@@ -24,13 +24,13 @@ python main.py -mode encoder -phase train -lr 1e-5 -decay 1e-5 -tmode offline -i
 # ### Graph
 
 # #train
-# python main.py -l en  -mode gcn -tp data/hater/train -epoches 15 -lr 1e-1 -decay 0 -phase train -bs 32 -interm_layer 16
+python main.py -l en  -mode gcn -tp data/hater/train -epoches 15 -lr 1e-3 -decay 2e-5 -phase train -bs 16 -interm_layer 32 -dp data/hater/dev/
 
 # #predict
-# python main.py -l en  -mode gcn -dp data/hater/dev -splits 5 -phase test -bs 2 -interm_layer 16 -output outputs
+python main.py -l en  -mode gcn -dp data/hater/dev -splits 1 -phase test -bs 64 -interm_layer 32 -output outputs
 
 # #encode
-# python main.py -l en  -mode gcn -dp data/hater/train -phase encode -bs 200 -interm_layer 16 -output outputs
+python main.py -l en  -mode gcn -dp data/hater/train -phase encode -bs 200 -interm_layer 32 -output outputs
 
 # #eval
-# python main.py -mode eval -dp data/hater/dev -l en
+python main.py -mode eval -dp data/hater/dev -l en

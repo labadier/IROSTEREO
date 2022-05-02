@@ -11,11 +11,9 @@ class GCN(torch.nn.Module):
     super(GCN, self).__init__()
 
     self.conv1 = torch_geometric.nn.GATv2Conv(kwargs['features_nodes'], kwargs['hidden_channels'])
-    self.conv2 = torch_geometric.nn.GATv2Conv(kwargs['hidden_channels'], kwargs['hidden_channels']>>1)
 
-    self.lin = torch.nn.Linear(kwargs['hidden_channels']>>1, kwargs['hidden_channels']>>1)
-    self.pred = torch.nn.Sequential(torch.nn.LeakyReLU(), torch.nn.Linear(kwargs['hidden_channels']>>1, kwargs['hidden_channels']>>1), 
-                                    torch.nn.LeakyReLU(),  torch.nn.Linear( kwargs['hidden_channels']>>1, 2))
+    self.lin = torch.nn.Linear(kwargs['hidden_channels'], kwargs['hidden_channels']>>1)
+    self.pred = torch.nn.Sequential(torch.nn.LeakyReLU(),  torch.nn.Linear( kwargs['hidden_channels']>>1, 2))
     self.best_acc = None
     self.best_acc_train = None
     self.language = language
@@ -27,14 +25,13 @@ class GCN(torch.nn.Module):
   def forward(self, data, get_encoding=False):
     edge_index = data.edge_index.to(self.device)
     x = self.conv1(data.x.to(self.device), edge_index)
-    x = F.leaky_relu(x, 0.03)
-    x = self.conv2(x, edge_index)
-    x = F.dropout(x, p=0.2, training=self.training)
-    x = F.leaky_relu(x, 0.03)
+    # x = F.dropout(x, p=0.2, training=self.training)
+    x = F.leaky_relu(x, 0.001)
 
-    x = torch_scatter.scatter_mean(x, data.batch.to(self.device), dim=0)
-
-    x = self.lin(x)
+    x = x.reshape(data.num_graphs, -1, x.shape[-1])
+    x = data.prototypes.to(self.device) @ x
+    
+    x = self.lin(x.squeeze())
     # x = F.dropout(x, p=0.45, training=self.training)
     
     if get_encoding == True:

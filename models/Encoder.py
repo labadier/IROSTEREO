@@ -32,7 +32,13 @@ def seed_worker(worker_id):
   np.random.seed(worker_seed)
   random.seed(worker_seed)
 
-def HugginFaceLoad(language, weigths_source):
+def HugginFaceLoad(language, weigths_source, model_name=None):
+
+  if model_name is not None:
+    model = AutoModel.from_pretrained(model_name)
+    tokenizer = AutoTokenizer.from_pretrained(model_name, do_lower_case=True, TOKENIZERS_PARALLELISM=True)
+    return model, tokenizer
+
 
   prefix = 'data' if weigths_source == 'offline' else ''
   model = AutoModel.from_pretrained(os.path.join(prefix , params.models[language]))
@@ -51,7 +57,7 @@ class SeqModel(torch.nn.Module):
     self.lang = language
     self.max_length = kwargs['max_length']
     self.interm_neurons = kwargs['interm_layer_size']
-    self.transformer, self.tokenizer = HugginFaceLoad( language, self.mode)
+    self.transformer, self.tokenizer = HugginFaceLoad( language, self.mode, None if 'model_name' not in kwargs.keys() else kwargs['model_name'])
     self.intermediate = torch.nn.Sequential(torch.nn.Linear(in_features=768, out_features=self.interm_neurons), torch.nn.LeakyReLU(),
                                             torch.nn.Linear(in_features=self.interm_neurons, out_features=self.interm_neurons>>1),
                                             torch.nn.LeakyReLU())
