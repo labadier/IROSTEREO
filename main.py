@@ -111,7 +111,10 @@ if __name__ == '__main__':
       model = SeqModel(language=language, **model_params)
 
       if weight_path is not None:
-        model.load(os.path.join(weight_path, f"{params.models[language].split('/')[-1]}_1.pt"))
+        if model_name is not None:
+          model.load(os.path.join(weight_path, f"{model_name}_1.pt"))
+        else:
+          model.load(os.path.join(weight_path, f"{params.models[language].split('/')[-1]}_1.pt"))
       else: print(f"{bcolors.WARNING}{bcolors.BOLD}No Weights Loaded{bcolors.ENDC}")
 
       encodings = [model.encode( {'text':i} , batch_size, get_log=False) for i in text]

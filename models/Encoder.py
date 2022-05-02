@@ -83,8 +83,8 @@ class SeqModel(torch.nn.Module):
     return output 
 
   def load(self, path):
-    print(f"{bcolors.OKCYAN}{bcolors.BOLD}Weights Loaded{bcolors.ENDC}") 
     self.load_state_dict(torch.load(path, map_location=self.device))
+    print(f"{bcolors.OKCYAN}{bcolors.BOLD}Weights Loaded{bcolors.ENDC}") 
 
   def save(self, path):
     torch.save(self.state_dict(), path)

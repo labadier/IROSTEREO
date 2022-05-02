@@ -6,3 +6,4 @@ progress
 pandas
 numpy
 torch-geometric
+networkx
