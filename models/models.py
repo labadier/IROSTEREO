@@ -303,7 +303,7 @@ def encode(model_name, data, language, data_path, splits=1, batch_size=64, inter
                 'interm_layer_size':interm_layer_size}
 
   model = MODELS[model_name](language=language, **model_params) 
-  devloader,_ = prepareDataLoader(model_name=model_name, data_train={key:data[key] for key in data.keys()}, batch_size=batch_size, eval=True)
+  devloader,_ = prepareDataLoader(model_name=model_name, data_train=data, batch_size=batch_size, eval=True)
 
   model.eval()
 

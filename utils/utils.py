@@ -121,6 +121,10 @@ def load_data_PAN(data_path, labeled=True):
         for twit in root:
           tweets[-1].append(removeTokens(twit.text))
         tweets[-1] = np.array(tweets[-1])
+
+    if not len(indx):
+      print(f"{bcolors.WARNING}{bcolors.BOLD}No Authors Found{bcolors.ENDC}")
+      
     if labeled == True:
         return tweets, indx, np.array(label)
     return tweets, indx

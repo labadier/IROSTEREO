@@ -23,6 +23,7 @@ def check_params(args=None):
 
   parser.add_argument('-l', metavar='language', default='EN', help='Task Language')
   parser.add_argument('-mode', metavar='mode', help='task')
+  parser.add_argument('-port', metavar='portion', help='Portion for impostor')
   parser.add_argument('-model', metavar='model', help='model to encode')
   parser.add_argument('-phase', metavar='phase', help='Phase')
   parser.add_argument('-output', metavar='output', default = 'logs', help='Output Path')
@@ -62,6 +63,7 @@ if __name__ == '__main__':
   mode = parameters.mode
   mtl = (parameters.mtl == 'mtl')
   model_name = parameters.model
+  port = parameters.port
 
   output = parameters.output
   
@@ -203,14 +205,13 @@ if __name__ == '__main__':
 
       known = encodings[train_index]
       known_labels = labels[train_index]
-      print(known_labels)
 
       y_hat = K_Impostor(positive = known[list(np.argwhere(known_labels==1).reshape(-1))], 
                          negative = known[list(np.argwhere(known_labels==0).reshape(-1))], 
-                         unknown = unk, checkp=0.4)
+                         unknown = unk, checkp=port)
       Y_Test += K_Impostor(encodings[list(np.argwhere(labels==1).reshape(-1))], 
                          encodings[list(np.argwhere(labels==0).reshape(-1))], 
-                         unknown = encodings_test, checkp=0.4)
+                         unknown = encodings_test, checkp=port)
       
       metrics = classification_report(unk_labels, y_hat, target_names=['No Hate', 'Hate'],  digits=4, zero_division=1)
       acc = accuracy_score(unk_labels, y_hat)
@@ -218,7 +219,7 @@ if __name__ == '__main__':
       print('Report Split: {} - acc: {}{}'.format(i+1, np.round(acc, decimals=2), '\n'))
       print(metrics)
 
-    print(f'Accuracy {language}: {np.round(overl_acc/splits, decimals=2)}')
+    print(f"{bcolors.OKCYAN}{bcolors.BOLD}Overall Accuracy {language}: {np.round(overl_acc/splits, decimals=2)}{bcolors.ENDC}")
     save_predictions(idx, np.where(Y_Test > (splits>>1), 1, 0), language, output)
 
   if mode == "svm":
@@ -239,7 +240,7 @@ if __name__ == '__main__':
     Y_Test = np.zeros((len(encodings_test),))
     for i, (train_index, test_index) in enumerate(skf.split(encodings, labels)):
       
-      svm_model_linear = LinearSVC( ).fit(encodings[train_index], labels[train_index])
+      svm_model_linear = LinearSVC( max_iter =1e6 ).fit(encodings[train_index], labels[train_index])
       print(f'train svm split {i+1}: {svm_model_linear.score(encodings[train_index], labels[train_index])}')
       
       svm_predictions = svm_model_linear.predict(encodings_test)
