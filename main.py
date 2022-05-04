@@ -23,7 +23,7 @@ def check_params(args=None):
 
   parser.add_argument('-l', metavar='language', default='EN', help='Task Language')
   parser.add_argument('-mode', metavar='mode', help='task')
-  parser.add_argument('-port', metavar='portion', help='Portion for impostor')
+  parser.add_argument('-port', metavar='portion', type=float,  help='Portion for impostor')
   parser.add_argument('-model', metavar='model', help='model to encode')
   parser.add_argument('-phase', metavar='phase', help='Phase')
   parser.add_argument('-output', metavar='output', default = 'logs', help='Output Path')
