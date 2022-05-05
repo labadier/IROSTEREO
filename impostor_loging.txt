@@ -1,0 +1,171 @@
+Report Split: 1 - acc: 0.69
+
+              precision    recall  f1-score   support
+
+     No Hate     0.6481    0.8333    0.7292        42
+        Hate     0.7667    0.5476    0.6389        42
+
+    accuracy                         0.6905        84
+   macro avg     0.7074    0.6905    0.6840        84
+weighted avg     0.7074    0.6905    0.6840        84
+
+Report Split: 2 - acc: 0.65
+
+              precision    recall  f1-score   support
+
+     No Hate     0.6383    0.7143    0.6742        42
+        Hate     0.6757    0.5952    0.6329        42
+
+    accuracy                         0.6548        84
+   macro avg     0.6570    0.6548    0.6535        84
+weighted avg     0.6570    0.6548    0.6535        84
+
+Report Split: 3 - acc: 0.79
+
+              precision    recall  f1-score   support
+
+     No Hate     0.7400    0.8810    0.8043        42
+        Hate     0.8529    0.6905    0.7632        42
+
+    accuracy                         0.7857        84
+   macro avg     0.7965    0.7857    0.7838        84
+weighted avg     0.7965    0.7857    0.7838        84
+
+Report Split: 4 - acc: 0.69
+
+              precision    recall  f1-score   support
+
+     No Hate     0.6538    0.8095    0.7234        42
+        Hate     0.7500    0.5714    0.6486        42
+
+    accuracy                         0.6905        84
+   macro avg     0.7019    0.6905    0.6860        84
+weighted avg     0.7019    0.6905    0.6860        84
+
+Report Split: 5 - acc: 0.65
+
+              precision    recall  f1-score   support
+
+     No Hate     0.6275    0.7619    0.6882        42
+        Hate     0.6970    0.5476    0.6133        42
+
+    accuracy                         0.6548        84
+   macro avg     0.6622    0.6548    0.6508        84
+weighted avg     0.6622    0.6548    0.6508        84
+
+[96m[1mOverall Accuracy en: 0.7[0m
+[1m[92mPredictions Done Successfully[0m
+Report Split: 1 - acc: 0.69
+
+              precision    recall  f1-score   support
+
+     No Hate     0.6600    0.7857    0.7174        42
+        Hate     0.7353    0.5952    0.6579        42
+
+    accuracy                         0.6905        84
+   macro avg     0.6976    0.6905    0.6876        84
+weighted avg     0.6976    0.6905    0.6876        84
+
+Report Split: 2 - acc: 0.68
+
+              precision    recall  f1-score   support
+
+     No Hate     0.6667    0.7143    0.6897        42
+        Hate     0.6923    0.6429    0.6667        42
+
+    accuracy                         0.6786        84
+   macro avg     0.6795    0.6786    0.6782        84
+weighted avg     0.6795    0.6786    0.6782        84
+
+Report Split: 3 - acc: 0.74
+
+              precision    recall  f1-score   support
+
+     No Hate     0.7083    0.8095    0.7556        42
+        Hate     0.7778    0.6667    0.7179        42
+
+    accuracy                         0.7381        84
+   macro avg     0.7431    0.7381    0.7368        84
+weighted avg     0.7431    0.7381    0.7368        84
+
+Report Split: 4 - acc: 0.68
+
+              precision    recall  f1-score   support
+
+     No Hate     0.6531    0.7619    0.7033        42
+        Hate     0.7143    0.5952    0.6494        42
+
+    accuracy                         0.6786        84
+   macro avg     0.6837    0.6786    0.6763        84
+weighted avg     0.6837    0.6786    0.6763        84
+
+Report Split: 5 - acc: 0.67
+
+              precision    recall  f1-score   support
+
+     No Hate     0.6522    0.7143    0.6818        42
+        Hate     0.6842    0.6190    0.6500        42
+
+    accuracy                         0.6667        84
+   macro avg     0.6682    0.6667    0.6659        84
+weighted avg     0.6682    0.6667    0.6659        84
+
+[96m[1mOverall Accuracy en: 0.69[0m
+[1m[92mPredictions Done Successfully[0m
+Report Split: 1 - acc: 0.69
+
+              precision    recall  f1-score   support
+
+     No Hate     0.6600    0.7857    0.7174        42
+        Hate     0.7353    0.5952    0.6579        42
+
+    accuracy                         0.6905        84
+   macro avg     0.6976    0.6905    0.6876        84
+weighted avg     0.6976    0.6905    0.6876        84
+
+Report Split: 2 - acc: 0.68
+
+              precision    recall  f1-score   support
+
+     No Hate     0.6667    0.7143    0.6897        42
+        Hate     0.6923    0.6429    0.6667        42
+
+    accuracy                         0.6786        84
+   macro avg     0.6795    0.6786    0.6782        84
+weighted avg     0.6795    0.6786    0.6782        84
+
+Report Split: 3 - acc: 0.74
+
+              precision    recall  f1-score   support
+
+     No Hate     0.7083    0.8095    0.7556        42
+        Hate     0.7778    0.6667    0.7179        42
+
+    accuracy                         0.7381        84
+   macro avg     0.7431    0.7381    0.7368        84
+weighted avg     0.7431    0.7381    0.7368        84
+
+Report Split: 4 - acc: 0.68
+
+              precision    recall  f1-score   support
+
+     No Hate     0.6531    0.7619    0.7033        42
+        Hate     0.7143    0.5952    0.6494        42
+
+    accuracy                         0.6786        84
+   macro avg     0.6837    0.6786    0.6763        84
+weighted avg     0.6837    0.6786    0.6763        84
+
+Report Split: 5 - acc: 0.67
+
+              precision    recall  f1-score   support
+
+     No Hate     0.6522    0.7143    0.6818        42
+        Hate     0.6842    0.6190    0.6500        42
+
+    accuracy                         0.6667        84
+   macro avg     0.6682    0.6667    0.6659        84
+weighted avg     0.6682    0.6667    0.6659        84
+
+[96m[1mOverall Accuracy en: 0.69[0m
+[1m[92mPredictions Done Successfully[0m

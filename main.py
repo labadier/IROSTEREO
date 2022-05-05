@@ -219,7 +219,7 @@ if __name__ == '__main__':
       print('Report Split: {} - acc: {}{}'.format(i+1, np.round(acc, decimals=2), '\n'))
       print(metrics)
 
-    print(f"{bcolors.OKCYAN}{bcolors.BOLD}Overall Accuracy {language}: {np.round(overl_acc/splits, decimals=2)}{bcolors.ENDC}")
+    print(f"{bcolors.OKCYAN}{bcolors.BOLD}Overall Accuracy for {port} in {language}: {np.round(overl_acc/splits, decimals=2)}{bcolors.ENDC}")
     save_predictions(idx, np.where(Y_Test > (splits>>1), 1, 0), language, output)
 
   if mode == "svm":
