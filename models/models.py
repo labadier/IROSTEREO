@@ -209,14 +209,14 @@ def prepareDataLoader(model_name, data_train, data_dev = None, batch_size = None
 
 def train_model_CV(model_name, lang, data, splits = 5, epoches = 4, batch_size = 8, max_length = 120, 
                     interm_layer_size = 64, lr = 1e-5,  decay=2e-5, graph_hidden_chanels = None, 
-                    features_nodes = 32, output='logs', model_mode='offline'):
+                    features_nodes = 32, output='logs', model_mode='offline', mtl = 'stl'):
 
   history = []
   skf = StratifiedKFold(n_splits=splits, shuffle=True, random_state = 23)
   
   model_params = {'mode':model_mode, 'hidden_channels':graph_hidden_chanels, 
                   'features_nodes':features_nodes, 'max_length': max_length, 
-                  'interm_layer_size':interm_layer_size}
+                  'interm_layer_size':interm_layer_size, 'multitask': mtl}
 
   for i, (train_index, test_index) in enumerate(skf.split(np.zeros_like(data['labels']), data['labels'])):  
     

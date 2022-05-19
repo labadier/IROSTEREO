@@ -84,7 +84,7 @@ if __name__ == '__main__':
       if dev_path is None:
         history = train_model_CV(model_name=params.models[language].split('/')[-1], lang=language, data=dataTrain,
                     splits=splits, epoches=epoches, batch_size=batch_size, max_length=max_length, interm_layer_size = interm_layer_size,
-                    lr = learning_rate,  decay=decay, model_mode=mode_weigth)
+                    lr = learning_rate,  decay=decay, model_mode=mode_weigth, mtl = mtl)
       else:
         if not mtl:  #! Change not
           text, _, labels = load_data_PAN(os.path.join(train_path, language))
@@ -94,7 +94,7 @@ if __name__ == '__main__':
         history = train_model_dev(model_name=params.models[language].split('/')[-1], lang=language, data_train=dataTrain,
                       data_dev={'text':text, 'labels': labels}, epoches=epoches, batch_size=batch_size, max_length=max_length, 
                       interm_layer_size = interm_layer_size, lr = learning_rate,  decay=decay, output=output, model_mode=mode_weigth,
-                      mtl = not mtl)
+                      mtl = mtl)
       
       plot_training(history[-1], language, 'acc')
       exit(0)
@@ -222,7 +222,7 @@ if __name__ == '__main__':
     print(f"{bcolors.OKCYAN}{bcolors.BOLD}Overall Accuracy for {port} in {language}: {np.round(overl_acc/splits, decimals=2)}{bcolors.ENDC}")
     save_predictions(idx, np.where(Y_Test > (splits>>1), 1, 0), language, output)
 
-  if mode == "svm":
+  if "svm" in mode:
 
     ''' 
       Classify the profiles with Impostors Method 
@@ -231,8 +231,12 @@ if __name__ == '__main__':
     _, _, labels = load_data_PAN(os.path.join(train_path, language.lower()), labeled=True)
     _, idx  = load_data_PAN(os.path.join(dev_path, language.lower()), labeled=False)
 
-    encodings = torch.load('logs/train_gcnenc_en.pt')
-    encodings_test = torch.load('logs/test_gcnenc_en.pt')    
+    if 'linear' not in mode:
+      encodings = torch.load('logs/train_gcnenc_en.pt')
+      encodings_test = torch.load('logs/test_gcnenc_en.pt')  
+    else:
+      encodings = np.mean(torch.load('logs/train_gcnenc_en.pt'), axis = 1)
+      encodings_test = np.mean(torch.load('logs/test_gcnenc_en.pt'), axis = 1)
       
     skf = StratifiedKFold(n_splits=splits, shuffle=True, random_state = 23)   
     overl_acc = 0

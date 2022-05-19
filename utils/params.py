@@ -3,7 +3,7 @@ class params:
 
   #Hate-speech-CNERG/bert-base-uncased-hatexplain
   #cardiffnlp/twitter-roberta-base-irony
-  models = {'fr': 'flaubert/flaubert_base_cased', 'en': 'Hate-speech-CNERG/bert-base-uncased-hatexplain',
+  models = {'fr': 'flaubert/flaubert_base_cased', 'en': 'vinai/bertweet-base',
           'es':'finiteautomata/beto-sentiment-analysis', 'de':'oliverguhr/german-sentiment-bert',
           'it': 'dbmdz/bert-base-italian-uncased', 'pt':'neuralmind/bert-base-portuguese-cased'}
 
