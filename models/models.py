@@ -5,6 +5,8 @@ import numpy as np
 
 from models.Encoder import SeqModel, seed_worker
 from models.GraphBased import GCN
+from models.Seq import LSTMAtt_Classifier
+
 from torch.utils.data import DataLoader
 from utils.utils import bcolors
 
@@ -17,7 +19,7 @@ from torch_geometric.loader import DataLoader as GLoader
 
 import networkx
 
-MODELS = {'gcn': GCN} | {params.models[language].split('/')[-1]: SeqModel for language in params.models.keys()}
+MODELS = {'gcn': GCN, 'lstm': LSTMAtt_Classifier} | {params.models[language].split('/')[-1]: SeqModel for language in params.models.keys()}
 
 def sigmoid( z ):
   return 1./(1 + torch.exp(-z))
@@ -130,7 +132,19 @@ def train_model(model_name, model, trainloader, devloader, epoches, lr, decay, o
   return {'loss': eloss, 'acc': eacc, 'dev_loss': edev_loss, 'dev_acc': edev_acc}
 
 
-def PrepareGraph(data, beta=0.97, avecPrototypes = True) -> tuple:
+def PrepareGraph(data, beta=0.97, avecPrototypes = True, protoKind = 'centrality+') -> tuple:
+  
+  mark = None
+  def dfs( node, level ):
+  
+    mark[node] = level
+    if level == 3:
+      return
+      
+    for ady in G[node]:
+      if mark[ady] != -1 and mark[ady] <= mark[node]:
+        continue
+      dfs(ady, level + 1)
 
   with torch.no_grad():
 
@@ -153,12 +167,23 @@ def PrepareGraph(data, beta=0.97, avecPrototypes = True) -> tuple:
         comp_index = {k:v for v in range(len(comp)) for k in comp[v] }
 
         G = networkx.Graph([i for i in G.edges if comp_index[i[0]] == comp_index[i[1]]])
-        Edegree = [np.mean([G.degree[j] for j in comp[i]]) for i in range(len(comp))]
-        Prototypes = [int(np.ceil(np.log(len(comp[i]))/np.log(Edegree[i]))) + (Edegree[i] <= 2) for i in range(len(comp))]
-
         bw = networkx.betweenness_centrality(G)
-        comp = [sorted([(node, bw[node]) for node in comp[i]], reverse=True, key = lambda x : x[1])[:Prototypes[i]] for i in range(len(comp))]
-        mask[index][[node[0] for c in comp for node in c]] = 1.0
+
+        if protoKind == 'centrality':
+
+          Edegree = [np.mean([G.degree[j] for j in comp[i]]) for i in range(len(comp))]
+          Prototypes = [int(np.ceil(np.log(len(comp[i]))/np.log(Edegree[i]))) + (Edegree[i] <= 2) for i in range(len(comp))]
+          comp = [sorted([(node, bw[node]) for node in comp[i]], reverse=True, key = lambda x : x[1])[:Prototypes[i]] for i in range(len(comp))]
+          mask[index][[node[0] for c in comp for node in c]] = 1.0
+        else:
+          
+          mark = {i:-1 for i in range(len(G.nodes))}
+          nodes = sorted([i for i in range(len(G.nodes))], reverse=True, key = lambda node : bw[node])
+          for i in nodes:
+            if mark[i] == -1 or mark[i] == 3:
+              mask[index][i] = 1.0
+              dfs(i, 1)
+
         mask[index] /= torch.sum(mask[index])
       
       mask = mask.unsqueeze(1)
@@ -231,6 +256,7 @@ def train_model_CV(model_name, lang, data, splits = 5, epoches = 4, batch_size =
     del trainloader
     del devloader
     del model
+    break
   return history
 
 
