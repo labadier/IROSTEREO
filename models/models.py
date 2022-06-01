@@ -146,6 +146,8 @@ def PrepareGraph(data, beta=0.97, avecPrototypes = True, protoKind = 'centrality
         continue
       dfs(ady, level + 1)
 
+  dgsss = []
+  ssssc = []
   with torch.no_grad():
 
     alpha = [cosine_similarity(i) for i in data['sem_encodings']]
@@ -173,9 +175,12 @@ def PrepareGraph(data, beta=0.97, avecPrototypes = True, protoKind = 'centrality
 
           Edegree = [np.mean([G.degree[j] for j in comp[i]]) for i in range(len(comp))]
           Prototypes = [int(np.ceil(np.log(len(comp[i]))/np.log(Edegree[i]))) + (Edegree[i] <= 2) for i in range(len(comp))]
+          dgsss += [G.degree[j] for i in range(len(comp)) for j in comp[i] if G.degree[j] > 2]
+          ssssc += [len(comp[i]) for i in range(len(comp)) if len(comp[i]) > 1]
           comp = [sorted([(node, bw[node]) for node in comp[i]], reverse=True, key = lambda x : x[1])[:Prototypes[i]] for i in range(len(comp))]
           mask[index][[node[0] for c in comp for node in c]] = 1.0
-        else:
+
+        elif protoKind == 'centrality+':
           
           mark = {i:-1 for i in range(len(G.nodes))}
           nodes = sorted([i for i in range(len(G.nodes))], reverse=True, key = lambda node : bw[node])
@@ -183,11 +188,19 @@ def PrepareGraph(data, beta=0.97, avecPrototypes = True, protoKind = 'centrality
             if mark[i] == -1 or mark[i] == 3:
               mask[index][i] = 1.0
               dfs(i, 1)
+        
+        elif protoKind == 'messagebased':
+          Prototypes = [comp[i][np.random.randint(len(comp[i]))] for i in range(len(comp))]
+          mask[index][Prototypes] = 1.0
 
         mask[index] /= torch.sum(mask[index])
       
       mask = mask.unsqueeze(1)
       print(f"\r{bcolors.OKGREEN}{bcolors.BOLD}Computing Prototypes{bcolors.ENDC}: {perc*100.0:.2f}%") 
+      # print(f'Expected global degree:{np.mean(dgsss)} Expected Global Component Size: {np.mean(ssssc)}')
+      # print(f'STD global degree:{np.std(dgsss)} STD Global Component Size: {np.std(ssssc)}')
+      # print(f'MIN global degree:{np.min(dgsss)} MIN Global Component Size: {np.min(ssssc)}')
+      # print(f'MAX global degree:{np.max(dgsss)} MAX Global Component Size: {np.max(ssssc)}')
     
       edge_index = [torch.tensor(graph).t().contiguous() for graph in edge_index]
       return edge_index, mask, torch.tensor(data['labels'])

@@ -72,33 +72,26 @@ if __name__ == '__main__':
       if os.path.exists('./logs') == False:
         os.system('mkdir logs')
 
-      if not mtl: #! Change not because it was to train irony and hate with their respective data
-
+      if mtl: 
         text, _, labels = load_data_PAN(os.path.join(train_path, language))
-
-        skf = StratifiedKFold(n_splits=splits, shuffle=True, random_state = 23)   
-        for i, (train_index, test_index) in enumerate(skf.split(np.zeros_like(labels), labels)):
-          text, labels = ConverToClass(text[train_index], labels[train_index])
-          dataTrain = {'text':text, 'labels': labels}
-          textd, labelsd = ConverToClass(text[test_index], labels[test_index])
-          dataDev = {'text':textd, 'labels': labelsd}
-          break
-        # dataTrain = {'text':text, 'labels': labels}
+        dataTrain = {'text':text, 'labels': labels}
 
       else:
         text, labels = loadAugmentedData(train_path)
         dataTrain = {'text':text, 'labels': labels}
 
-      if dev_path is not None: #! Remove not
+      if dev_path is None:
         history = train_model_CV(model_name=params.models[language].split('/')[-1], lang=language, data=dataTrain,
                     splits=splits, epoches=epoches, batch_size=batch_size, max_length=max_length, interm_layer_size = interm_layer_size,
                     lr = learning_rate,  decay=decay, model_mode=mode_weigth, mtl = mtl)
       else:
-        # if not mtl:  
-        #   text, _, labels = load_data_PAN(os.path.join(train_path, language))
-        #   text, labels = ConverToClass(text, labels)
-        # else:
-        #   text, labels = loadAugmentedData(train_path)
+        if mtl:  
+          text, _, labels = load_data_PAN(os.path.join(train_path, language))
+          text, labels = ConverToClass(text, labels)
+        else:
+          text, labels = loadAugmentedData(train_path)
+       
+        dataDev = {'text':text, 'labels': labels}
         history = train_model_dev(model_name=params.models[language].split('/')[-1], lang=language, data_train=dataTrain,
                       data_dev=dataDev, epoches=epoches, batch_size=batch_size, max_length=max_length, 
                       interm_layer_size = interm_layer_size, lr = learning_rate,  decay=decay, output=output, model_mode=mode_weigth,
@@ -306,11 +299,10 @@ if __name__ == '__main__':
         os.system('mkdir logs')
 
       _, idx = load_data_PAN(os.path.join(dev_path, language), labeled = False)
-      data = {'encodings':torch.load(f"logs/irony/{'train' if 'train' in dev_path else 'test'}_penc_{language}.pt") +\
+      data = {'text':torch.load(f"logs/irony/{'train' if 'train' in dev_path else 'test'}_penc_{language}.pt") +\
               torch.load(f"logs/hate/{'train' if 'train' in dev_path else 'test'}_penc_{language}.pt"),
-              'sem_encodings': torch.load(f"logs/raw/{'train' if 'train' in dev_path else 'test'}_penc_{language}.pt"),
               'labels':np.zeros((len(idx), ))}
-      y_hat = predict(model_name='gcn', data=data, language=language, splits = splits, batch_size = batch_size,
+      y_hat = predict(model_name='lstm', data=data, language=language, splits = splits, batch_size = batch_size,
                       graph_hidden_chanels = interm_layer_size)
 
       save_predictions(idx, y_hat, language, output)

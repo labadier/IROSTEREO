@@ -79,6 +79,9 @@ class SeqModel(torch.nn.Module):
     enc = self.intermediate(X)
     output = self.classifier(enc)
     if get_encoding == True:
+
+      if params.models[self.lang] == "bert-base-cased":
+        return X
       return enc, output
     return output 
 

@@ -126,7 +126,7 @@ def load_data_PAN(data_path, labeled=True):
       print(f"{bcolors.WARNING}{bcolors.BOLD}No Authors Found{bcolors.ENDC}")
       
     if labeled == True:
-        return tweets, indx, np.array(label)
+        return np.array(tweets), indx, np.array(label)
     return tweets, indx
 
 def loadAugmentedData(data_path):

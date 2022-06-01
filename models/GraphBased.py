@@ -25,6 +25,8 @@ class GCN(torch.nn.Module):
   def forward(self, data, get_encoding=False):
     edge_index = data.edge_index.to(self.device)
     x = self.conv1(data.x.to(self.device), edge_index)
+    # for i in range(3):
+    #   x = self.conv1(x, edge_index)
     # x = F.dropout(x, p=0.2, training=self.training)
     x = F.leaky_relu(x, 0.001)
 
