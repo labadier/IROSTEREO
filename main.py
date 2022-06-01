@@ -4,7 +4,7 @@ from sklearn import svm
 from matplotlib.pyplot import axis
 from utils.params import params
 from utils.utils import load_data_PAN, ConverToClass, plot_training
-from utils.utils import bcolors, evaluate, loadAugmentedData
+from utils.utils import bcolors, evaluate, loadAugmentedData, loadMTLData
 from models.models import train_model_CV, train_model_dev, predict, save_predictions, encode
 
 from sklearn.metrics import classification_report, accuracy_score
@@ -77,7 +77,7 @@ if __name__ == '__main__':
         dataTrain = {'text':text, 'labels': labels}
 
       else:
-        text, labels = loadAugmentedData(train_path)
+        text, labels = loadAugmentedData(train_path) if not mtl else loadMTLData(train_path)
         dataTrain = {'text':text, 'labels': labels}
 
       if dev_path is None:
@@ -89,7 +89,7 @@ if __name__ == '__main__':
           text, _, labels = load_data_PAN(os.path.join(train_path, language))
           text, labels = ConverToClass(text, labels)
         else:
-          text, labels = loadAugmentedData(train_path)
+          text, labels = loadAugmentedData(train_path) if not mtl else loadMTLData(train_path)
        
         dataDev = {'text':text, 'labels': labels}
         history = train_model_dev(model_name=params.models[language].split('/')[-1], lang=language, data_train=dataTrain,

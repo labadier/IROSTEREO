@@ -140,6 +140,21 @@ def loadAugmentedData(data_path):
   labels = labels[m]
   return text, labels
 
+def loadMTLData(data_path):
+
+  data = pd.read_csv(data_path)
+  text = data['text'].to_numpy()
+  iro = data['irony'].astype(int).to_numpy().reshape(len(text), 1)
+  hate = data['hate'].astype(int).to_numpy().reshape(len(text), 1)
+  labels = np.concatenate([iro, hate], axis=-1)
+
+  
+  m = np.random.permutation(len(labels))
+
+  text = text[m]
+  labels = labels[m]
+  return text, labels
+
 def ConverToClass(tweets, labels):
 
     example = []
