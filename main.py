@@ -72,7 +72,7 @@ if __name__ == '__main__':
       if os.path.exists('./logs') == False:
         os.system('mkdir logs')
 
-      if mtl: 
+      if 'er' in train_path: 
         text, _, labels = load_data_PAN(os.path.join(train_path, language))
         dataTrain = {'text':text, 'labels': labels}
 
@@ -85,7 +85,7 @@ if __name__ == '__main__':
                     splits=splits, epoches=epoches, batch_size=batch_size, max_length=max_length, interm_layer_size = interm_layer_size,
                     lr = learning_rate,  decay=decay, model_mode=mode_weigth, mtl = mtl)
       else:
-        if mtl:  
+        if 'er' in train_path:  
           text, _, labels = load_data_PAN(os.path.join(train_path, language))
           text, labels = ConverToClass(text, labels)
         else:
