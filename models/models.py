@@ -197,10 +197,15 @@ def PrepareGraph(data, beta=0.97, avecPrototypes = True, protoKind = 'centrality
       
       mask = mask.unsqueeze(1)
       print(f"\r{bcolors.OKGREEN}{bcolors.BOLD}Computing Prototypes{bcolors.ENDC}: {perc*100.0:.2f}%") 
-      # print(f'Expected global degree:{np.mean(dgsss)} Expected Global Component Size: {np.mean(ssssc)}')
-      # print(f'STD global degree:{np.std(dgsss)} STD Global Component Size: {np.std(ssssc)}')
-      # print(f'MIN global degree:{np.min(dgsss)} MIN Global Component Size: {np.min(ssssc)}')
-      # print(f'MAX global degree:{np.max(dgsss)} MAX Global Component Size: {np.max(ssssc)}')
+
+      with open('beta-tuning.txt', 'a') as file:
+        file.write(f'beta={beta}:\n')
+        file.write(f'Expected global degree:{np.mean(dgsss)} Expected Global Component Size: {np.mean(ssssc)}\n')
+        file.write(f'STD global degree:{np.std(dgsss)} STD Global Component Size: {np.std(ssssc)}\n')
+        file.write(f'MIN global degree:{np.min(dgsss)} MIN Global Component Size: {np.min(ssssc)}\n')
+        file.write(f'MAX global degree:{np.max(dgsss)} MAX Global Component Size: {np.max(ssssc)}\n')
+
+      exit(0)
     
       edge_index = [torch.tensor(graph).t().contiguous() for graph in edge_index]
       return edge_index, mask, torch.tensor(data['labels'])
@@ -209,14 +214,14 @@ def PrepareGraph(data, beta=0.97, avecPrototypes = True, protoKind = 'centrality
     return edge_index, torch.tensor(data['labels'])
 
 
-def prepareDataLoader(model_name, data_train, data_dev = None, batch_size = None, eval=False) -> DataLoader:
+def prepareDataLoader(beta, model_name, data_train, data_dev = None, batch_size = None, eval=False) -> DataLoader:
 
   devloader = None
   if 'gcn' in model_name:
     
     encodings = torch.tensor(data_train['encodings'])
     
-    edge_index, prototypes, labels = PrepareGraph(data_train)
+    edge_index, prototypes, labels = PrepareGraph(data_train, beta)
     # # torch.save(prototypes, 'logs/train_pot.pt')
     # edge_index, labels = PrepareGraph(data_train, avecPrototypes=False)
     # prototypes = torch.load('logs/train_pot.pt')
@@ -228,7 +233,7 @@ def prepareDataLoader(model_name, data_train, data_dev = None, batch_size = None
 
       encodings = torch.tensor(data_dev['encodings'])
 
-      edge_index, prototypes, labels = PrepareGraph(data_dev)
+      edge_index, prototypes, labels = PrepareGraph(data_dev, beta)
       # torch.save(prototypes, 'logs/test_pot.pt')
       # edge_index, labels = PrepareGraph(data_dev, avecPrototypes=False)
       # prototypes = torch.load('logs/test_pot.pt')
@@ -245,7 +250,7 @@ def prepareDataLoader(model_name, data_train, data_dev = None, batch_size = None
 
 
 
-def train_model_CV(model_name, lang, data, splits = 5, epoches = 4, batch_size = 8, max_length = 120, 
+def train_model_CV(beta, model_name, lang, data, splits = 5, epoches = 4, batch_size = 8, max_length = 120, 
                     interm_layer_size = 64, lr = 1e-5,  decay=2e-5, graph_hidden_chanels = None, 
                     features_nodes = 32, output='logs', model_mode='offline', mtl = 'stl'):
 
@@ -261,8 +266,9 @@ def train_model_CV(model_name, lang, data, splits = 5, epoches = 4, batch_size =
     history.append({'loss': [], 'acc':[], 'dev_loss': [], 'dev_acc': []})
     model = MODELS[model_name](language=lang, **model_params)
     
-    trainloader, devloader = prepareDataLoader(model_name=model_name, data_train={key:data[key][train_index] for key in data.keys()},
+    trainloader, devloader = prepareDataLoader(beta=beta, model_name=model_name, data_train={key:data[key][train_index] for key in data.keys()},
                                               data_dev = {key:data[key][test_index] for key in data.keys()}, batch_size=batch_size)
+    exit(0)
     history.append(train_model(model_name, model, trainloader, devloader, epoches, lr, decay, output, i+1))
     
     print('Training Finished Split: {}'. format(i+1))

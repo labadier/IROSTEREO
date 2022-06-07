@@ -38,6 +38,7 @@ def check_params(args=None):
   parser.add_argument('-dp', metavar='dev_path', help='Data path Dev set')
   parser.add_argument('-wp', metavar='wp', help='Weight Path', default=None )
   parser.add_argument('-mtl', metavar='mtl', help='Make Multitasking ?', default=None )
+  parser.add_argument('-beta', metavar='beta', type=float,help='Beta fot semenjanze graph', default=None )
   
   return parser.parse_args(args)
 
@@ -63,6 +64,7 @@ if __name__ == '__main__':
   mtl = (parameters.mtl == 'mtl')
   model_name = parameters.model
   port = parameters.port
+  beta = parameters.beta
 
   output = parameters.output
   
@@ -102,7 +104,7 @@ if __name__ == '__main__':
 
     if phase == 'encode':
 
-      '''
+      '''Make Multitasking ?
         Get Encodings for each author's message from the Transformer-based encoders
       '''
       text,index = load_data_PAN(os.path.join(train_path, language), labeled=False)
@@ -137,7 +139,7 @@ if __name__ == '__main__':
                     'labels': labels}
       
       if dev_path is None:
-        history = train_model_CV(model_name='gcn', lang=language, data=dataTrain, splits=splits, epoches=epoches, batch_size=batch_size, 
+        history = train_model_CV(beta=beta, model_name='gcn', lang=language, data=dataTrain, splits=splits, epoches=epoches, batch_size=batch_size, 
                                   max_length=max_length, graph_hidden_chanels = interm_layer_size, lr = learning_rate,  decay=decay, model_mode=mode_weigth)
       else:
         _, _, labels = load_data_PAN(os.path.join(dev_path, language))
