@@ -172,6 +172,10 @@ def PrepareGraph(data, beta=0.97, avecPrototypes = True, protoKind = 'centrality
         bw = networkx.betweenness_centrality(G)
 
         if protoKind == 'centrality':
+          
+          '''
+            Making proto selection with log-neighborhood criteriom
+          '''
 
           Edegree = [np.mean([G.degree[j] for j in comp[i]]) for i in range(len(comp))]
           Prototypes = [int(np.ceil(np.log(len(comp[i]))/np.log(Edegree[i]))) + (Edegree[i] <= 2) for i in range(len(comp))]
@@ -182,6 +186,10 @@ def PrepareGraph(data, beta=0.97, avecPrototypes = True, protoKind = 'centrality
 
         elif protoKind == 'centrality+':
           
+          '''
+            Making proto selection with neighborhood coloring criteriom
+          '''
+
           mark = {i:-1 for i in range(len(G.nodes))}
           nodes = sorted([i for i in range(len(G.nodes))], reverse=True, key = lambda node : bw[node])
           for i in nodes:
@@ -190,6 +198,9 @@ def PrepareGraph(data, beta=0.97, avecPrototypes = True, protoKind = 'centrality
               dfs(i, 1)
         
         elif protoKind == 'messagebased':
+          '''
+            Ready to make as many message passing operation as log2(\bar{\delta})
+          '''
           Prototypes = [comp[i][np.random.randint(len(comp[i]))] for i in range(len(comp))]
           mask[index][Prototypes] = 1.0
 
@@ -198,14 +209,14 @@ def PrepareGraph(data, beta=0.97, avecPrototypes = True, protoKind = 'centrality
       mask = mask.unsqueeze(1)
       print(f"\r{bcolors.OKGREEN}{bcolors.BOLD}Computing Prototypes{bcolors.ENDC}: {perc*100.0:.2f}%") 
 
-      with open('beta-tuning.txt', 'a') as file:
-        file.write(f'beta={beta}:\n')
-        file.write(f'Expected global degree:{np.mean(dgsss)} Expected Global Component Size: {np.mean(ssssc)}\n')
-        file.write(f'STD global degree:{np.std(dgsss)} STD Global Component Size: {np.std(ssssc)}\n')
-        file.write(f'MIN global degree:{np.min(dgsss)} MIN Global Component Size: {np.min(ssssc)}\n')
-        file.write(f'MAX global degree:{np.max(dgsss)} MAX Global Component Size: {np.max(ssssc)}\n')
+      # with open('beta-tuning.txt', 'a') as file:
+      #   file.write(f'beta={beta}:\n')
+      #   file.write(f'Expected global degree:{np.mean(dgsss)} Expected Global Component Size: {np.mean(ssssc)}\n')
+      #   file.write(f'STD global degree:{np.std(dgsss)} STD Global Component Size: {np.std(ssssc)}\n')
+      #   file.write(f'MIN global degree:{np.min(dgsss)} MIN Global Component Size: {np.min(ssssc)}\n')
+      #   file.write(f'MAX global degree:{np.max(dgsss)} MAX Global Component Size: {np.max(ssssc)}\n')
 
-      exit(0)
+      # exit(0)
     
       edge_index = [torch.tensor(graph).t().contiguous() for graph in edge_index]
       return edge_index, mask, torch.tensor(data['labels'])
@@ -214,7 +225,7 @@ def PrepareGraph(data, beta=0.97, avecPrototypes = True, protoKind = 'centrality
     return edge_index, torch.tensor(data['labels'])
 
 
-def prepareDataLoader(beta, model_name, data_train, data_dev = None, batch_size = None, eval=False) -> DataLoader:
+def prepareDataLoader(beta=0.97, model_name=None, data_train=None, data_dev = None, batch_size = None, eval=False) -> DataLoader:
 
   devloader = None
   if 'gcn' in model_name:
@@ -268,7 +279,7 @@ def train_model_CV(beta, model_name, lang, data, splits = 5, epoches = 4, batch_
     
     trainloader, devloader = prepareDataLoader(beta=beta, model_name=model_name, data_train={key:data[key][train_index] for key in data.keys()},
                                               data_dev = {key:data[key][test_index] for key in data.keys()}, batch_size=batch_size)
-    exit(0)
+    # exit(0)
     history.append(train_model(model_name, model, trainloader, devloader, epoches, lr, decay, output, i+1))
     
     print('Training Finished Split: {}'. format(i+1))
