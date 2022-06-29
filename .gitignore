@@ -10,3 +10,5 @@ irony
 saveProfilesReduced r2d2-stsb-bertweet-base-v0.tsv
 pan22-author-profiling-test-2022-04-22-without_truth*
 beta-tuning.txt
+data/pan22-author-profiling-stereotypestance-training-2022-06-17.zip
+data/pan22-author-profiling-stereotypestance-test_without_truth-2022-06-17.zip

@@ -86,7 +86,8 @@ def read_truth(data_path):
         target = {}
         for line in target_file:
             inf = line.split(':::')
-            target[inf[0]] = int (not 'NI' in inf[1])  #! Change for IROSTEREO int (not 'NI' in inf[1]) and for HATER int (inf[1]) 
+            target[inf[0]] = int (not 'AGAINST' in inf[1])  #! Change for IROSTEREO int (not 'NI' in inf[1]) and for HATER int (inf[1]) 
+                                                       #! For Stance (not 'AGAINST' in inf[1])
 
     return target
 
@@ -197,7 +198,7 @@ def evaluate(truthPath, dataPath, language):
   for adr in addrs:
     node = XT.parse(adr).getroot()
     y += [target[node.attrib['id']]]
-    y_hat += [int ( not 'NI' in node.attrib['type'])]  #! Change for IROSTEREO int ( not 'NI' in node.attrib['type']) and for HATER int (node.attrib['type'])
+    y_hat += [int ( not 'AGAINST' in node.attrib['type'])]  #! Change for IROSTEREO int ( not 'NI' in node.attrib['type']) and for HATER int (node.attrib['type'])
 
   # print(y_hat, y)
   print(classification_report(y, y_hat, target_names=['Negative', 'Positive'],  digits=4, zero_division=1))
